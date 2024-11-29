@@ -26,7 +26,7 @@ The plots below show the distributions of the ```sii``` and ```PCIAT``` scores f
 ![sii_image](./images/sii_class.png)
 
 The dataset provided is far from complete and contains a large number of missing (NaN) entries. While imputation is important, there are those features with over $80\%$ of the entries missing. In such cases imputation will be ill-advised. Such features are excluded from the dataset. Furthermore, we also exclude those features that show very low correlation with ```sii```. 
-$$ 0.05 \geq \text{Corr}(X_i) \geq - 0.05 $$
+```math 0.05 \geq \text{Corr}(X_i) \geq - 0.05 $$ ```
 ![nan_image](./images/nan_percent.png)
 
 ![correlation_image](./images/correlations.png)
