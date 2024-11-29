@@ -1,4 +1,4 @@
-# Problematic Internet Usage among children and adolescents: a semi-supervised learning approach# Problematic Internet Usage among children and adolescents: a semi-supervised learning approach
+## Problematic Internet Usage among children and adolescents: a semi-supervised learning approach# Problematic Internet Usage among children and adolescents: a semi-supervised learning approach
 
 ![intro_image](./images/sii_class.png)
 
