@@ -1,17 +1,31 @@
+'''
+This is a module file containing a list of important functions. 
+
+The cross_val_QK() function takes in a number of arguments as inputs and serves two important purposes. If optimize_mode=True, the function
+is used to perform hyperparameter optimization, in conjuction with Optuna, and returns the optimized QWK score. If optimize_mode=False, it
+means that optimization has already been performed and returns arrays with validation and prediction results.
+'''
+
 import numpy as np
 import pandas as pd
+from typing import List, Union, Tuple 
 from scipy.optimize import minimize
 from sklearn.base import clone 
-from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline 
 from sklearn.model_selection import StratifiedKFold 
-from sklearn.metrics import cohen_kappa_score
+from sklearn.metrics import cohen_kappa_score, f1_score
 
-def clipped(X, r):
+RANDOM_SEED = 10
+
+def clipped(X : pd.DataFrame, r : float) -> pd.DataFrame:
     ''' 
     This function caps the numerical columns to the specified upper and lower quantiles on respective ends. It does so for those featutres
     for which the standard deviation is much greater or equal the mean. This is passed as a desired ratio of std/mean.
+
+    The function returns a dataframe with the desired level of clippining.
     '''
     X_clipped = X.copy()
 
@@ -25,9 +39,12 @@ def clipped(X, r):
 
     return X_clipped
 
-def process(X, num_cols, cat_cols):
+def process(X : pd.DataFrame, num_cols : List[str], cat_cols : List[str]) -> pd.DataFrame:
     ''' 
-    This function performs preprocessing on the data. The training data is first split into numerical and categorical features.
+    This function performs preprocessing on the data. The training data is first split into numerical and categorical features depending 
+    on the numerical and categorical columns passed as lists.
+
+    The function returns a dataframe containing only the selected numerical and categorical columns.
     '''
     X_numerical = X[num_cols]
 
@@ -44,16 +61,18 @@ def process(X, num_cols, cat_cols):
 
     return X_processed
 
-def quadratic_weighted_kappa(y_true, y_pred):
+def quadratic_weighted_kappa(y_true : np.ndarray, y_pred : np.ndarray) -> float:
     return cohen_kappa_score(y_true, y_pred, weights='quadratic')
 
-def threshold_rounder(oof_not_rounded, thresholds):
+def threshold_rounder(oof_not_rounded : np.ndarray, thresholds : List[float]) -> np.ndarray:
     ''' 
     This function iteratively rounds up (or down) the validation set predictions using a predefined threshold passed as an array.
     By default, the thresholds can be set as [0.5, 1.5, 2.5], such that predicts lesser (or greater) than the thresholds will be
     rounded to the nearest integer.
     
-    This function can be particularly useful when one wishes to implement a custom rounding threshold.
+    This function can be particularly useful when one wishes to implement a custom rounding threshold. If optimize_mode=True, the function
+    is used to perform hyperparameter optimization, in conjuction with Optuna, and returns the optimized QWK score. If optimize_mode=False, it
+    means that optimization has already been performed and returns arrays with validation and prediction results.
     '''
     thresh_0, thresh_1, thresh_2 = thresholds # unpack the thresholds
 
@@ -61,17 +80,21 @@ def threshold_rounder(oof_not_rounded, thresholds):
         oof_not_rounded < thresh_0, 0, np.where(oof_not_rounded < thresh_1, 1, np.where(oof_not_rounded < thresh_2, 2, 3))
     )
 
-def evaluate_predictions(thresholds, y, oof_not_rounded):
+def evaluate_predictions(thresholds : List[float], y : np.ndarray, oof_not_rounded : np.ndarray) -> float:
 	y_pred_rounded = threshold_rounder(oof_not_rounded, thresholds)
 	return -quadratic_weighted_kappa(y, y_pred_rounded)
 
-def cross_val_QWK(reg_class, X, X_test, y, num_cols, cat_cols, cv, verbose=False):
+def cross_val_QWK(reg_class, X : pd.DataFrame,
+                  X_test : pd.DataFrame, y : pd.Series, num_cols : List[str], cat_cols : List[str], cv : int,
+                  verbose : bool = False, optimize_mode : bool = False) -> Union[float, Tuple[pd.Series, np.ndarray, np.ndarray]]:
     ''' 
     This function takes in a particular classifier and training data and perfoms Stratified k-Fold cross-validation on it
     and calculates the out-of-fold (OOF) QWK score.
+
+    The output depends on whether optimize_mode is True or False. If True, it only returns the tuned value of kappa. This can be important during hyperparameter optimization when
+    other outputs are not required.
     '''
-    RANDOM_SEED = 10
-    X = process(X, num_cols, cat_cols)
+    X = process(X, num_cols, cat_cols) 
     N_SPLITS = cv
     train_scores = [] # training QWK scores across folds
     val_scores = []   # validation QWK scores across folds
@@ -97,30 +120,32 @@ def cross_val_QWK(reg_class, X, X_test, y, num_cols, cat_cols, cv, verbose=False
 
         numerical_transformer = Pipeline(
             steps=[
-                ('imp_num', KNNImputer(n_neighbors=5, weights='uniform')),
-                #('imp_num', SimpleImputer(strategy='mean')),
-                #('ss', StandardScaler())
+                #('imp_num', KNNImputer(n_neighbors=5, weights='uniform')),
+                ('imp_num', SimpleImputer(strategy='mean')),
+                #('ss', StandardScaler()),
+                ('mms', MinMaxScaler()),
+                #('rs', RobustScaler()),
             ]
         )
 
         categorical_transformer = Pipeline(
             steps=[
-                ('imp_cat', KNNImputer(n_neighbors=5, weights='uniform')),
-                #('imp_cat', SimpleImputer(strategy='most_frequent')),
+                #('imp_cat', KNNImputer(n_neighbors=5, weights='uniform')),
+                ('imp_cat', SimpleImputer(strategy='most_frequent')),
             ]
         )
 
         preprocessor = ColumnTransformer(
             transformers=[
                 ('numerical_transforms', numerical_transformer, num_cols),
-                ('categorical_transforms', categorical_transformer, cat_cols[1:])
-            ], remainder='passthrough'
+                ('categorical_transforms', categorical_transformer, cat_cols)
+            ]
         )
 
         preprocessor.set_output(transform='pandas')
-        X_train = preprocessor.fit_transform(X_train)
-        X_val = preprocessor.transform(X_val)
-        test_data = preprocessor.transform(X_test)
+        X_train = preprocessor.fit_transform(X_train) 
+        X_val = preprocessor.transform(X_val) 
+        test_data = preprocessor.transform(X_test) 
 
         reg = clone(reg_class)
         reg.fit(X_train, y_train)
@@ -158,8 +183,15 @@ def cross_val_QWK(reg_class, X, X_test, y, num_cols, cat_cols, cv, verbose=False
     oof_tuned = threshold_rounder(oof_not_rounded, threshold_optim)
     kappa_val_tuned = quadratic_weighted_kappa(y, oof_tuned)
 
-    print(f'Tuned QWK = {kappa_val_tuned}')
+    F1_score = f1_score(y[test_idx].to_numpy(), oof_tuned[test_idx], average='weighted')
+
+    print(f'Tuned QWK = {kappa_val_tuned}; F1 score = {F1_score}')
 
     y_pred_mean = threshold_rounder(y_pred.mean(axis=1), threshold_optim)
 
-    return kappa_val_tuned, y_pred_mean 
+    if optimize_mode == True:
+
+        return kappa_val_tuned
+    else:
+
+        return y[test_idx], oof_tuned[test_idx], y_pred_mean 
