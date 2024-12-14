@@ -1,0 +1,8 @@
+{
+    'objective': 'RMSE',
+    'iterations': 339,
+    'depth': 8,
+    'learning_rate': 0.052883943723149085,
+    'l2_leaf_reg': 4.689002920221734,
+    'subsample': 0.7739756088803678
+}

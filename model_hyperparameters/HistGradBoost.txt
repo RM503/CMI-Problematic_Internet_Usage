@@ -1,0 +1,9 @@
+{
+    'loss': 'squared_error',
+    'learning_rate': 0.03155471249443763,
+    'max_iter': 167,
+    'max_leaf_nodes': 42,
+    'max_depth': 5,
+    'l2_regularization': 2.300060318085989,
+    'max_features': 0.536561855749672
+}

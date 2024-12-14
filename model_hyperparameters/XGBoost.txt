@@ -1,0 +1,11 @@
+{
+    'objective': 'reg:squarederror',
+    'n_estimators': 500,
+    'max_depth': 7,
+    'learning_rate': 0.019560871979228026,
+    'gamma': 2.8602177174948795,
+    'reg_alpha': 3.350008536536844,
+    'reg_lambda': 2.135446274120378,
+    'subsample': 0.9514354733634935,
+    'colsample_bytree': 0.8922119852674855
+}
