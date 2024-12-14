@@ -4,13 +4,19 @@ from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from catboost import CatBoostRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor
-from utils import cross_val_QWK
+from main_funcs import cross_val_QWK
 import optuna 
 import json 
 
 def objective(trial, reg : str, X : pd.DataFrame, y : pd.Series, num_cols : List[str], cat_cols : List[str], cv : int, verbose : bool=False) -> float:
     ''' 
-    This function performs hyperparameter optimization using Optuna for a given classifier model.
+    This function defines hyperparameter optimization using Optuna for a given classifier model.
+
+    Currently, the list of regressors include 
+    (i) XGBoost
+    (ii) LightGBM
+    (iii) CatBoost
+    (iv) HistGradBoost
     '''
 
     if reg == 'XGBoost':
@@ -81,6 +87,10 @@ def objective(trial, reg : str, X : pd.DataFrame, y : pd.Series, num_cols : List
     return val_QWK
 
 def hyperparam_optim(reg : str, X : pd.DataFrame, y : pd.Series, num_cols : List[str], cat_cols : List[str], n_trials : int=50, cv : int=5) -> Dict[str, any]: 
+    ''' 
+    This function performs hyperparameter optimization by using the objective function previously defined. The output returned is a json file
+    containing the best parameters.
+    '''
     study = optuna.create_study(direction='maximize')
     study.optimize(
         lambda trial: objective(trial, reg, X, y, num_cols, cat_cols, cv),
@@ -90,7 +100,7 @@ def hyperparam_optim(reg : str, X : pd.DataFrame, y : pd.Series, num_cols : List
     print(f'Best parameters for {reg}: {study.best_params}')
     print(f'Best QWK score: {study.best_value}')
 
-    with open(reg + '.txt', 'w') as f:
+    with open('./model_hyperparameters/' + reg + '.txt', 'w') as f:
         json.dump(study.best_params, f)
 
     return study.best_params

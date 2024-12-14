@@ -1,6 +1,7 @@
 import glob
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from colorama import Fore 
 from typing import List, Union, Tuple   
 from scipy import stats
 import numpy as np
@@ -9,7 +10,7 @@ import pandas as pd
 class time_series_features:
     ''' 
     This class contains methods for extracting statistics from the actigraphy parquet files. The class can be instantiated with only one argument
-    where 'file_path_array' is an array containing the file paths of all the parquet files.
+    where 'file_path_array' is an array containing the file paths of all the actigraphy parquet files.
 
     If 'extract_timeseries_features()' and/or 'process_file()' methods are to be used standalone, then an extra parameter is required.
     '''
@@ -190,7 +191,7 @@ class time_series_features:
         The extraction process is sped up using Python's joblib library, with n_jobs being an optional argument.
         '''
         print('Extracting features from time-series files.')
-        results = Parallel(n_jobs=n_jobs)(delayed(self.process_file)(f) for f in tqdm(filepath_array))
+        results = Parallel(n_jobs=n_jobs)(delayed(self.process_file)(f) for f in tqdm(filepath_array, desc=Fore.GREEN + "Progress", colour="green"))
 
         stats, indices = zip(*results)
         df = pd.DataFrame(stats, columns=[f'stat_{i}' for i in range(len(stats[0]))])
@@ -202,8 +203,15 @@ if __name__ == '__main__':
 
     folder_path = './child-mind-institute-problematic-internet-use/'
     timeseries_train_files = glob.glob(folder_path + 'series_train.parquet/*')
+    timeseries_test_files = glob.glob(folder_path + 'series_test.parquet/*')
 
-    ts = time_series_features(timeseries_train_files)
+    # Instantiate the time_series_features object and extract statistics from the times series actigraphy files
+    # Merge the data file with actigraphy stats on the id column
+    ts_train = time_series_features(timeseries_train_files)
+    ts_test = time_series_features(timeseries_test_files)
 
-    ts_stats = ts.timeseries_features_df()
-    print(ts_stats)
+    train_timeseries = ts_test.timeseries_features_df(timeseries_train_files)
+    test_timeseries = ts_test.timeseries_features_df(timeseries_test_files)
+
+    train_timeseries.to_csv('./actigraphy_stats/ts_train_stats.csv', index=False)
+    test_timeseries.to_csv('./actigraphy_stats/ts_test_stats.csv', index=False)
