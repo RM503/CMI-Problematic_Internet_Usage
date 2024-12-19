@@ -26,11 +26,29 @@ The plots below show the distributions of the ```sii``` and ```PCIAT``` scores f
 ![sii_image](./images/sii_class.png)
 
 The dataset provided is far from complete and contains a large number of missing (NaN) entries. While imputation is important, there are those features with over $80\%$ of the entries missing. In such cases imputation will be ill-advised. Such features are excluded from the dataset. Furthermore, we also exclude those features that show very low correlation with ```sii```. 
-```math 
-0.05 \geq \text{Corr}(X_i) \geq - 0.05 $$
+```math
+0.05 \geq \text{Corr}(X_i) \geq - 0.05
 ```
 ![nan_image](./images/nan_percent.png)
 
 ![correlation_image](./images/correlations.png)
 
-Finally, we include a few more features created out of existing ones. Overall, with the different features excluded, we arrive at $69$ numerical and $7$ categorical features after the initial round of processing.
+Finally, we include a few more features created out of existing ones. Overall, with the different features excluded, we arrive at $69$ numerical and $7$ categorical features after the initial round of processing. These columns are saved in the ```final_features``` folder.
+## Evaluation metric
+In many cases, such as surveys used by healthcare practitioners, using metrics such as accuracy or $F_1$ scores might not be very feasible. This might arise due to several reasons, important ones being
+* class imbalance
+* interpretability of accuracy
+
+In such cases, one of the most effective ways to testing results of such clinical surveys is to use the *Cohen's kappa* ($\kappa$), which measures reliability of two raters, by comparing the agreements in the observed results to those expected by random chance. The interpretations of $\kappa$ are as follows
+* $\kappa < 0$: poor agreement
+* $0\leq\kappa\leq0.2$: slight agreement
+* $0.20 < \kappa \leq 0.4$: fair agreement
+* $0.40 < \kappa \leq 0.6$: moderate agreement
+* $0.80 < \kappa \leq 0.80$: substantial agreement
+* $\kappa > 0.80$: almost perfect agreement
+
+Here, we use the quadratically weighted kappa as the preferred evaluation metric. Details on the Cohen's kappa can be found in the ```cohens_kappa.pdf``` file.
+## Training and validation
+The data with the chosen features were further processed through a pipeline which included winsorization, imputation and scaling. For training and validation, we used three different boosted tree methods - (i) XGBoost, LightGBM and CatBoost with a final voting ensemble with the three boosted trees. We performed hyperparameter optimization using the ```optuna``` library and the optimized parameters can be found in the ```model_hyperparameters``` folder. Even through the ```sii``` variable is ordinal, the data is trained on boosted trees with an optimized threshold rounder to arrive at a final integer result. The validation result can be summarized using the following confusion matrix 
+ ![cm](./images/confusion_matrix.png)
+ with a kappa score of $0.464$, indicating moderate inter-rater reliability. Since the data is so heavily imbalanced, the model performs poorly for 'moderate' and 'severe' cases, with no correct 'severe' classification being made.
